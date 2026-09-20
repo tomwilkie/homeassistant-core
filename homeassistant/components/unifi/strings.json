@@ -80,6 +80,23 @@
         "name": "LED"
       }
     },
+    "number": {
+      "wan_failover_priority": {
+        "name": "Failover priority"
+      },
+      "wan_load_balance_weight": {
+        "name": "Load balance weight"
+      }
+    },
+    "select": {
+      "wan_load_balancing": {
+        "name": "Load balancing",
+        "state": {
+          "failover_only": "Failover only",
+          "weighted": "Weighted"
+        }
+      }
+    },
     "sensor": {
       "client_bandwidth_rx": {
         "name": "RX"
