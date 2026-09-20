@@ -256,7 +256,7 @@ def async_device_state_value_fn(hub: UnifiHub, device: Device) -> str | None:
 
 @callback
 def async_device_wan_latency_supported_fn(
-    wan: Literal["WAN", "WAN2"],
+    wan: Literal["WAN", "WAN2", "WAN3"],
     monitor_target: str,
     hub: UnifiHub,
     obj_id: str,
@@ -269,7 +269,7 @@ def async_device_wan_latency_supported_fn(
 
 @callback
 def async_device_wan_latency_value_fn(
-    wan: Literal["WAN", "WAN2"],
+    wan: Literal["WAN", "WAN2", "WAN3"],
     monitor_target: str,
     hub: UnifiHub,
     device: Device,
@@ -286,7 +286,7 @@ def async_device_wan_latency_value_fn(
 
 @callback
 def _device_wan_latency_monitor(
-    wan: Literal["WAN", "WAN2"], monitor_target: str, device: Device
+    wan: Literal["WAN", "WAN2", "WAN3"], monitor_target: str, device: Device
 ) -> TypedDeviceUptimeStatsWanMonitor | None:
     """Return the target of the WAN latency monitor."""
     if device.uptime_stats and (uptime_stats_wan := device.uptime_stats.get(wan)):
@@ -300,7 +300,7 @@ def make_wan_latency_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
     """Create WAN latency sensors from WAN monitor data."""
 
     def make_wan_latency_entity_description(
-        wan: Literal["WAN", "WAN2"], name: str, monitor_target: str
+        wan: Literal["WAN", "WAN2", "WAN3"], name: str, monitor_target: str
     ) -> UnifiSensorEntityDescription:
         name_wan = f"{name} {wan}"
         return UnifiSensorEntityDescription[Devices, Device](
@@ -323,7 +323,11 @@ def make_wan_latency_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
             value_fn=partial(async_device_wan_latency_value_fn, wan, monitor_target),
         )
 
-    wans: tuple[Literal["WAN"], Literal["WAN2"]] = ("WAN", "WAN2")
+    wans: tuple[Literal["WAN"], Literal["WAN2"], Literal["WAN3"]] = (
+        "WAN",
+        "WAN2",
+        "WAN3",
+    )
     return tuple(
         make_wan_latency_entity_description(wan, name, target)
         for wan in wans
