@@ -103,6 +103,9 @@
     },
     "remove_clients": {
       "service": "mdi:delete"
+    },
+    "set_wan_failover_order": {
+      "service": "mdi:sort"
     }
   }
 }
