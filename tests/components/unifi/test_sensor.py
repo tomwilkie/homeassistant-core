@@ -492,6 +492,8 @@ UPS_DEVICE_2["vbms_table"]["battpool"]["device_bypass_voltage"] = 121.7
                     "WAN": {
                         "availability": 100.0,
                         "latency_average": 39,
+                        "time_period": 86400,
+                        "uptime": 808277,
                         "monitors": [
                             {
                                 "availability": 100.0,
@@ -2151,6 +2153,89 @@ async def test_wan_monitor_latency_without_monitors_key(
 
     latency_entry = entity_registry.async_get("sensor.mock_name_google_wan_latency")
     assert latency_entry is None
+
+
+# WAN reports every aggregate but no monitors, WAN2 reports monitors but no
+# aggregates, and WAN3 is absent entirely.
+WAN_STATS_DEVICE = {
+    "board_rev": 2,
+    "device_id": "mock-id",
+    "ip": "10.0.1.1",
+    "mac": "10:00:00:00:01:01",
+    "last_seen": 1562600145,
+    "model": "US16P150",
+    "name": "mock-name",
+    "port_overrides": [],
+    "uptime_stats": {
+        "WAN": {
+            "availability": 99.73679998517036,
+            "latency_average": 24,
+            "time_period": 22745,
+            "uptime": 137062,
+        },
+        "WAN2": {
+            "monitors": [
+                {"availability": 0.0, "target": "google.com", "type": "icmp"},
+            ],
+        },
+    },
+    "state": 1,
+    "type": "usw",
+    "version": "4.0.42.10433",
+}
+
+
+@pytest.mark.parametrize("device_payload", [[WAN_STATS_DEVICE]])
+@pytest.mark.parametrize(
+    ("entity_id", "expected_state"),
+    [
+        pytest.param("sensor.mock_name_wan_latency", "24", id="latency"),
+        pytest.param(
+            "sensor.mock_name_wan_availability",
+            "99.7367999851704",
+            id="availability",
+        ),
+        pytest.param(
+            "sensor.mock_name_wan_uptime",
+            "2020-12-30T10:56:38+00:00",
+            id="uptime",
+        ),
+    ],
+)
+@pytest.mark.usefixtures("entity_registry_enabled_by_default", "config_entry_setup")
+@pytest.mark.freeze_time("2021-01-01 01:01:00")
+async def test_wan_stats_sensors(
+    hass: HomeAssistant,
+    entity_id: str,
+    expected_state: str,
+) -> None:
+    """Verify the aggregate figures a gateway reports per WAN group."""
+    assert hass.states.get(entity_id).state == expected_state
+
+
+@pytest.mark.parametrize("device_payload", [[WAN_STATS_DEVICE]])
+@pytest.mark.parametrize(
+    "entity_id",
+    [
+        pytest.param("sensor.mock_name_wan2_latency", id="field_missing_latency"),
+        pytest.param(
+            "sensor.mock_name_wan2_availability", id="field_missing_availability"
+        ),
+        pytest.param("sensor.mock_name_wan2_uptime", id="field_missing_uptime"),
+        pytest.param("sensor.mock_name_wan3_latency", id="group_absent_latency"),
+        pytest.param(
+            "sensor.mock_name_wan3_availability", id="group_absent_availability"
+        ),
+        pytest.param("sensor.mock_name_wan3_uptime", id="group_absent_uptime"),
+    ],
+)
+@pytest.mark.usefixtures("entity_registry_enabled_by_default", "config_entry_setup")
+async def test_wan_stats_sensors_not_created(
+    entity_registry: er.EntityRegistry,
+    entity_id: str,
+) -> None:
+    """Verify no sensor is created for a missing figure or a missing WAN group."""
+    assert entity_registry.async_get(entity_id) is None
 
 
 @pytest.mark.parametrize(

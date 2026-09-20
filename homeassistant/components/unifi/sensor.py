@@ -67,6 +67,12 @@ from .hub import UnifiHub
 
 PARALLEL_UPDATES = 0
 
+WAN_GROUPS: tuple[Literal["WAN"], Literal["WAN2"], Literal["WAN3"]] = (
+    "WAN",
+    "WAN2",
+    "WAN3",
+)
+
 
 @callback
 def async_bandwidth_sensor_allowed_fn(hub: UnifiHub, obj_id: str) -> bool:
@@ -323,18 +329,147 @@ def make_wan_latency_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
             value_fn=partial(async_device_wan_latency_value_fn, wan, monitor_target),
         )
 
-    wans: tuple[Literal["WAN"], Literal["WAN2"], Literal["WAN3"]] = (
-        "WAN",
-        "WAN2",
-        "WAN3",
-    )
     return tuple(
         make_wan_latency_entity_description(wan, name, target)
-        for wan in wans
+        for wan in WAN_GROUPS
         for name, target in (
             ("Microsoft", "microsoft"),
             ("Google", "google"),
             ("Cloudflare", "1.1.1.1"),
+        )
+    )
+
+
+@callback
+def _device_wan_stat(
+    wan: Literal["WAN", "WAN2", "WAN3"], field: str, device: Device
+) -> float | None:
+    """Return a figure the gateway reports for a WAN group as a whole.
+
+    aiounifi does not declare these alongside "monitors", so the value is only
+    trusted once it turns out to be a number at runtime.
+    """
+    if device.uptime_stats and (uptime_stats_wan := device.uptime_stats.get(wan)):
+        if isinstance(value := uptime_stats_wan.get(field), int | float):
+            return value
+    return None
+
+
+@callback
+def async_device_wan_stat_supported_fn(
+    wan: Literal["WAN", "WAN2", "WAN3"],
+    field: str,
+    hub: UnifiHub,
+    obj_id: str,
+) -> bool:
+    """Determine if a device reports this figure for this WAN group."""
+    return _device_wan_stat(wan, field, hub.api.devices[obj_id]) is not None
+
+
+@callback
+def async_device_wan_stat_value_fn(
+    wan: Literal["WAN", "WAN2", "WAN3"],
+    field: str,
+    hub: UnifiHub,
+    device: Device,
+) -> float | None:
+    """Retrieve a figure the gateway reports for a WAN group."""
+    return _device_wan_stat(wan, field, device)
+
+
+@callback
+def async_device_wan_uptime_value_fn(
+    wan: Literal["WAN", "WAN2", "WAN3"], hub: UnifiHub, device: Device
+) -> datetime | None:
+    """Calculate the approximate time a WAN group came up."""
+    if (uptime := _device_wan_stat(wan, "uptime", device)) is None:
+        return None
+    return (dt_util.now() - timedelta(seconds=uptime)).replace(microsecond=0)
+
+
+def make_wan_stats_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
+    """Create sensors for the figures a gateway reports per WAN group.
+
+    These are the gateway's own rolling figures over its "time_period" and are
+    not derived from the per-target "monitors": a WAN can report
+    latency_average=15 while its monitors read 8 and 9, and availability=100.0
+    while one of its monitors reads 0.0. "time_period" also differs per WAN, so
+    availability is not comparable between WAN groups.
+    """
+
+    def make_wan_latency_average_entity_description(
+        wan: Literal["WAN", "WAN2", "WAN3"],
+    ) -> UnifiSensorEntityDescription:
+        return UnifiSensorEntityDescription[Devices, Device](
+            key=f"{wan} latency average",
+            translation_key="wan_latency_average",
+            device_class=SensorDeviceClass.DURATION,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            native_unit_of_measurement=UnitOfTime.MILLISECONDS,
+            state_class=SensorStateClass.MEASUREMENT,
+            entity_registry_enabled_default=False,
+            api_handler_fn=lambda api: api.devices,
+            available_fn=async_device_available_fn,
+            device_info_fn=async_device_device_info_fn,
+            object_fn=lambda api, obj_id: api.devices[obj_id],
+            supported_fn=partial(
+                async_device_wan_stat_supported_fn, wan, "latency_average"
+            ),
+            translation_placeholders_fn=lambda _: {"wan": wan},
+            unique_id_fn=lambda hub, obj_id: f"{slugify(wan)}_latency_average-{obj_id}",
+            value_fn=partial(async_device_wan_stat_value_fn, wan, "latency_average"),
+        )
+
+    def make_wan_availability_entity_description(
+        wan: Literal["WAN", "WAN2", "WAN3"],
+    ) -> UnifiSensorEntityDescription:
+        return UnifiSensorEntityDescription[Devices, Device](
+            key=f"{wan} availability",
+            translation_key="wan_availability",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            native_unit_of_measurement=PERCENTAGE,
+            state_class=SensorStateClass.MEASUREMENT,
+            suggested_display_precision=1,
+            entity_registry_enabled_default=False,
+            api_handler_fn=lambda api: api.devices,
+            available_fn=async_device_available_fn,
+            device_info_fn=async_device_device_info_fn,
+            object_fn=lambda api, obj_id: api.devices[obj_id],
+            supported_fn=partial(
+                async_device_wan_stat_supported_fn, wan, "availability"
+            ),
+            translation_placeholders_fn=lambda _: {"wan": wan},
+            unique_id_fn=lambda hub, obj_id: f"{slugify(wan)}_availability-{obj_id}",
+            value_fn=partial(async_device_wan_stat_value_fn, wan, "availability"),
+        )
+
+    def make_wan_uptime_entity_description(
+        wan: Literal["WAN", "WAN2", "WAN3"],
+    ) -> UnifiSensorEntityDescription:
+        return UnifiSensorEntityDescription[Devices, Device](
+            key=f"{wan} uptime",
+            translation_key="wan_uptime",
+            device_class=SensorDeviceClass.UPTIME,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+            api_handler_fn=lambda api: api.devices,
+            available_fn=async_device_available_fn,
+            device_info_fn=async_device_device_info_fn,
+            object_fn=lambda api, obj_id: api.devices[obj_id],
+            supported_fn=partial(async_device_wan_stat_supported_fn, wan, "uptime"),
+            translation_placeholders_fn=lambda _: {"wan": wan},
+            unique_id_fn=lambda hub, obj_id: f"{slugify(wan)}_uptime-{obj_id}",
+            value_fn=partial(async_device_wan_uptime_value_fn, wan),
+            value_changed_fn=async_uptime_value_changed_fn,
+        )
+
+    return tuple(
+        make_entity_description(wan)
+        for wan in WAN_GROUPS
+        for make_entity_description in (
+            make_wan_latency_average_entity_description,
+            make_wan_availability_entity_description,
+            make_wan_uptime_entity_description,
         )
     )
 
@@ -862,7 +997,11 @@ ENTITY_DESCRIPTIONS: tuple[UnifiSensorEntityDescription, ...] = (
     ),
 )
 
-ENTITY_DESCRIPTIONS += make_wan_latency_sensors() + make_device_temperatur_sensors()
+ENTITY_DESCRIPTIONS += (
+    make_wan_latency_sensors()
+    + make_wan_stats_sensors()
+    + make_device_temperatur_sensors()
+)
 
 
 async def async_setup_entry(

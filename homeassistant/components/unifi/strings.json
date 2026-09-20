@@ -164,8 +164,17 @@
       "ups_output_voltage": {
         "name": "Output voltage"
       },
+      "wan_availability": {
+        "name": "{wan} availability"
+      },
       "wan_latency": {
         "name": "{target} {wan} latency"
+      },
+      "wan_latency_average": {
+        "name": "{wan} latency"
+      },
+      "wan_uptime": {
+        "name": "{wan} uptime"
       },
       "wired_client_link_speed": {
         "name": "Link speed"
