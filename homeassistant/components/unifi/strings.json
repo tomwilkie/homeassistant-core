@@ -184,6 +184,15 @@
       "wan_latency": {
         "name": "{target} {wan} latency"
       },
+      "wan_status": {
+        "name": "Status",
+        "state": {
+          "disabled": "[%key:common::state::disabled%]",
+          "no_link": "No link",
+          "offline": "Offline",
+          "online": "Online"
+        }
+      },
       "wired_client_link_speed": {
         "name": "Link speed"
       },
