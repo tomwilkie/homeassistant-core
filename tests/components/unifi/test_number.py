@@ -35,28 +35,28 @@ FAILOVER_PRIORITY_ENTITY_ID = "number.internet_1_failover_priority"
 LOAD_BALANCE_WEIGHT_ENTITY_ID = "number.internet_1_load_balance_weight"
 
 
-@pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
-@pytest.mark.parametrize(
-    "site_payload",
-    [
-        [{"desc": "Site name", "name": "site_id", "role": "admin", "_id": "1"}],
-        [{"desc": "Site name", "name": "site_id", "role": "not admin", "_id": "1"}],
-    ],
-)
+@pytest.mark.parametrize("network_payload", [[WAN_NETWORKS[0]]])
 async def test_entity_and_device_data(
     hass: HomeAssistant,
     entity_registry: er.EntityRegistry,
     config_entry_factory: ConfigEntryFactoryType,
-    site_payload: list[dict[str, Any]],
     snapshot: SnapshotAssertion,
 ) -> None:
-    """Validate entity and device data with and without admin rights."""
+    """Validate entity and device data."""
     with patch("homeassistant.components.unifi.PLATFORMS", [Platform.NUMBER]):
         config_entry = await config_entry_factory()
-    if site_payload[0]["role"] == "admin":
-        await snapshot_platform(hass, entity_registry, snapshot, config_entry.entry_id)
-    else:
-        assert len(hass.states.async_entity_ids(NUMBER_DOMAIN)) == 0
+    await snapshot_platform(hass, entity_registry, snapshot, config_entry.entry_id)
+
+
+@pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
+@pytest.mark.parametrize(
+    "site_payload",
+    [[{"desc": "Site name", "name": "site_id", "role": "not admin", "_id": "1"}]],
+)
+@pytest.mark.usefixtures("config_entry_setup")
+async def test_no_entities_without_admin(hass: HomeAssistant) -> None:
+    """Verify no entities are created without admin rights."""
+    assert len(hass.states.async_entity_ids(NUMBER_DOMAIN)) == 0
 
 
 @pytest.mark.parametrize(

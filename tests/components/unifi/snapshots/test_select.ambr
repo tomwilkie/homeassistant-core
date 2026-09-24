@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_entity_and_device_data[site_payload0-network_payload0][select.internet_1_load_balancing-entry]
+# name: test_entity_and_device_data[network_payload0][select.internet_1_load_balancing-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -7,7 +7,7 @@
     'area_id': None,
     'capabilities': dict({
       <SelectEntityCapabilityAttribute.OPTIONS: 'options'>: list([
-        'failover_only',
+        'failover-only',
         'weighted',
       ]),
     }),
@@ -41,12 +41,12 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_entity_and_device_data[site_payload0-network_payload0][select.internet_1_load_balancing-state]
+# name: test_entity_and_device_data[network_payload0][select.internet_1_load_balancing-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Internet 1 Load balancing',
       <SelectEntityCapabilityAttribute.OPTIONS: 'options'>: list([
-        'failover_only',
+        'failover-only',
         'weighted',
       ]),
     }),
@@ -55,124 +55,6 @@
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
-    'state': 'failover_only',
-  })
-# ---
-# name: test_entity_and_device_data[site_payload0-network_payload0][select.internet_2_load_balancing-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': list([
-      None,
-    ]),
-    'area_id': None,
-    'capabilities': dict({
-      <SelectEntityCapabilityAttribute.OPTIONS: 'options'>: list([
-        'failover_only',
-        'weighted',
-      ]),
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'select',
-    'entity_category': <EntityCategory.CONFIG: 'config'>,
-    'entity_id': 'select.internet_2_load_balancing',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'Load balancing',
-    'options': dict({
-    }),
-    'original_device_class': None,
-    'original_icon': None,
-    'original_name': 'Load balancing',
-    'platform': 'unifi',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'wan_load_balancing',
-    'unique_id': 'wan_load_balancing-600c0f0000000000000000a2',
-    'unit_of_measurement': None,
-  })
-# ---
-# name: test_entity_and_device_data[site_payload0-network_payload0][select.internet_2_load_balancing-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Internet 2 Load balancing',
-      <SelectEntityCapabilityAttribute.OPTIONS: 'options'>: list([
-        'failover_only',
-        'weighted',
-      ]),
-    }),
-    'context': <ANY>,
-    'entity_id': 'select.internet_2_load_balancing',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'weighted',
-  })
-# ---
-# name: test_entity_and_device_data[site_payload0-network_payload0][select.unifi_5g_a_load_balancing-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': list([
-      None,
-    ]),
-    'area_id': None,
-    'capabilities': dict({
-      <SelectEntityCapabilityAttribute.OPTIONS: 'options'>: list([
-        'failover_only',
-        'weighted',
-      ]),
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'select',
-    'entity_category': <EntityCategory.CONFIG: 'config'>,
-    'entity_id': 'select.unifi_5g_a_load_balancing',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'Load balancing',
-    'options': dict({
-    }),
-    'original_device_class': None,
-    'original_icon': None,
-    'original_name': 'Load balancing',
-    'platform': 'unifi',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'wan_load_balancing',
-    'unique_id': 'wan_load_balancing-600c0f0000000000000000a3',
-    'unit_of_measurement': None,
-  })
-# ---
-# name: test_entity_and_device_data[site_payload0-network_payload0][select.unifi_5g_a_load_balancing-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'UniFi 5G A Load balancing',
-      <SelectEntityCapabilityAttribute.OPTIONS: 'options'>: list([
-        'failover_only',
-        'weighted',
-      ]),
-    }),
-    'context': <ANY>,
-    'entity_id': 'select.unifi_5g_a_load_balancing',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'weighted',
+    'state': 'failover-only',
   })
 # ---

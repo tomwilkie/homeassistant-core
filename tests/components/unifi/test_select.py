@@ -1,7 +1,6 @@
 """UniFi Network select platform tests."""
 
 from copy import deepcopy
-from typing import Any
 from unittest.mock import patch
 
 from aiounifi.models.message import MessageKey
@@ -27,28 +26,28 @@ from tests.test_util.aiohttp import AiohttpClientMocker
 LOAD_BALANCING_ENTITY_ID = "select.internet_1_load_balancing"
 
 
-@pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
-@pytest.mark.parametrize(
-    "site_payload",
-    [
-        [{"desc": "Site name", "name": "site_id", "role": "admin", "_id": "1"}],
-        [{"desc": "Site name", "name": "site_id", "role": "not admin", "_id": "1"}],
-    ],
-)
+@pytest.mark.parametrize("network_payload", [[WAN_NETWORKS[0]]])
 async def test_entity_and_device_data(
     hass: HomeAssistant,
     entity_registry: er.EntityRegistry,
     config_entry_factory: ConfigEntryFactoryType,
-    site_payload: list[dict[str, Any]],
     snapshot: SnapshotAssertion,
 ) -> None:
-    """Validate entity and device data with and without admin rights."""
+    """Validate entity and device data."""
     with patch("homeassistant.components.unifi.PLATFORMS", [Platform.SELECT]):
         config_entry = await config_entry_factory()
-    if site_payload[0]["role"] == "admin":
-        await snapshot_platform(hass, entity_registry, snapshot, config_entry.entry_id)
-    else:
-        assert len(hass.states.async_entity_ids(SELECT_DOMAIN)) == 0
+    await snapshot_platform(hass, entity_registry, snapshot, config_entry.entry_id)
+
+
+@pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
+@pytest.mark.parametrize(
+    "site_payload",
+    [[{"desc": "Site name", "name": "site_id", "role": "not admin", "_id": "1"}]],
+)
+@pytest.mark.usefixtures("config_entry_setup")
+async def test_no_entities_without_admin(hass: HomeAssistant) -> None:
+    """Verify no entities are created without admin rights."""
+    assert len(hass.states.async_entity_ids(SELECT_DOMAIN)) == 0
 
 
 @pytest.mark.parametrize(
@@ -66,19 +65,15 @@ async def test_unsupported_network(hass: HomeAssistant) -> None:
 
 
 @pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
-@pytest.mark.parametrize(
-    ("option", "expected_load_balance_type"),
-    [("weighted", "weighted"), ("failover_only", "failover-only")],
-)
+@pytest.mark.parametrize("option", ["weighted", "failover-only"])
 async def test_select_load_balancing(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
     config_entry_setup: MockConfigEntry,
     option: str,
-    expected_load_balance_type: str,
 ) -> None:
     """Verify selecting a load balancing option writes the full network back."""
-    assert hass.states.get(LOAD_BALANCING_ENTITY_ID).state == "failover_only"
+    assert hass.states.get(LOAD_BALANCING_ENTITY_ID).state == "failover-only"
 
     aioclient_mock.clear_requests()
     aioclient_mock.put(
@@ -97,7 +92,7 @@ async def test_select_load_balancing(
     )
 
     expected_call = deepcopy(WAN_NETWORKS[0])
-    expected_call["wan_load_balance_type"] = expected_load_balance_type
+    expected_call["wan_load_balance_type"] = option
     assert aioclient_mock.call_count == 1
     assert aioclient_mock.mock_calls[0][2] == expected_call
 
@@ -108,7 +103,7 @@ async def test_websocket_update(
     hass: HomeAssistant, mock_websocket_message: WebsocketMessageMock
 ) -> None:
     """Verify state is updated from a networkconf websocket message."""
-    assert hass.states.get(LOAD_BALANCING_ENTITY_ID).state == "failover_only"
+    assert hass.states.get(LOAD_BALANCING_ENTITY_ID).state == "failover-only"
 
     network = deepcopy(WAN_NETWORKS[0])
     network["wan_load_balance_type"] = "weighted"

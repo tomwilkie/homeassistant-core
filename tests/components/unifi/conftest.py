@@ -52,10 +52,8 @@ CONTROLLER_HOST = {
 WAN_NETWORKS = [
     {
         "_id": "600c0f0000000000000000a1",
-        "enabled": True,
         "name": "Internet 1",
         "purpose": "wan",
-        "site_id": "5a32aa4ee4b0412345678910",
         "wan_failover_priority": 1,
         "wan_load_balance_type": "failover-only",
         "wan_load_balance_weight": 80,
@@ -64,10 +62,8 @@ WAN_NETWORKS = [
     },
     {
         "_id": "600c0f0000000000000000a2",
-        "enabled": True,
         "name": "Internet 2",
         "purpose": "wan",
-        "site_id": "5a32aa4ee4b0412345678910",
         "wan_failover_priority": 2,
         "wan_load_balance_type": "weighted",
         "wan_load_balance_weight": 20,
@@ -76,10 +72,8 @@ WAN_NETWORKS = [
     },
     {
         "_id": "600c0f0000000000000000a3",
-        "enabled": True,
         "name": "UniFi 5G A",
         "purpose": "wan",
-        "site_id": "5a32aa4ee4b0412345678910",
         "wan_failover_priority": 3,
         "wan_load_balance_type": "weighted",
         "wan_load_balance_weight": 1,
@@ -87,15 +81,6 @@ WAN_NETWORKS = [
         "wan_type": "dhcp",
     },
 ]
-
-LAN_NETWORK = {
-    "_id": "600c0f0000000000000000b1",
-    "enabled": True,
-    "name": "Default",
-    "purpose": "corporate",
-    "site_id": "5a32aa4ee4b0412345678910",
-    "vlan_enabled": False,
-}
 
 type ConfigEntryFactoryType = Callable[[], Coroutine[Any, Any, MockConfigEntry]]
 
