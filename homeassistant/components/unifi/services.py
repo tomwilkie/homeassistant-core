@@ -15,7 +15,7 @@ from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers.service import async_register_admin_service
 
 from .const import DOMAIN, LOGGER
-from .errors import controller_error_reason, is_controller_error
+from .errors import controller_error_reason
 
 if TYPE_CHECKING:
     from .hub import UnifiHub
@@ -178,15 +178,6 @@ def _async_resolve_wan_network(
     )
 
 
-async def _async_save_failover_priority(
-    hub: UnifiHub, network_id: str, priority: int
-) -> None:
-    """Write a new failover priority to a WAN network."""
-    await hub.api.networks.save(
-        hub.api.networks[network_id], wan_failover_priority=priority
-    )
-
-
 async def _async_apply_failover_priorities(
     hub: UnifiHub, priorities: Mapping[str, int], park_priority: int
 ) -> None:
@@ -196,10 +187,14 @@ async def _async_apply_failover_priorities(
     first moved out of the way before the target priorities are assigned.
     """
     for offset, network_id in enumerate(priorities):
-        await _async_save_failover_priority(hub, network_id, park_priority + offset)
+        await hub.api.networks.save(
+            hub.api.networks[network_id], wan_failover_priority=park_priority + offset
+        )
 
     for network_id, priority in priorities.items():
-        await _async_save_failover_priority(hub, network_id, priority)
+        await hub.api.networks.save(
+            hub.api.networks[network_id], wan_failover_priority=priority
+        )
 
 
 async def async_set_wan_failover_order(service_call: ServiceCall) -> None:
@@ -227,24 +222,21 @@ async def async_set_wan_failover_order(service_call: ServiceCall) -> None:
             )
         original[network_id] = priority
 
-    park_priority = (
-        max(
-            [
-                network.wan_failover_priority or 0
-                for network in hub.api.networks.values()
-            ]
-            + [len(targets)]
-        )
-        + 1
-    )
+    priorities = [net.wan_failover_priority or 0 for net in hub.api.networks.values()]
+    park_priority = max([*priorities, len(targets)]) + 1
 
     try:
         await _async_apply_failover_priorities(hub, targets, park_priority)
     except aiounifi.AiounifiException as err:
-        await _async_rollback_failover_priorities(
-            hub, original, park_priority + len(targets)
-        )
-        if is_controller_error(err, ERROR_DUPLICATE_PRIORITY):
+        try:
+            await _async_apply_failover_priorities(
+                hub, original, park_priority + len(targets)
+            )
+        except aiounifi.AiounifiException as rollback_err:
+            LOGGER.error(
+                "Failed to restore UniFi WAN failover priorities: %s", rollback_err
+            )
+        if controller_error_reason(err) == ERROR_DUPLICATE_PRIORITY:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="wan_failover_priority_conflict",
@@ -254,13 +246,3 @@ async def async_set_wan_failover_order(service_call: ServiceCall) -> None:
             translation_key="set_wan_failover_order_failed",
             translation_placeholders={"reason": controller_error_reason(err)},
         ) from err
-
-
-async def _async_rollback_failover_priorities(
-    hub: UnifiHub, priorities: Mapping[str, int], park_priority: int
-) -> None:
-    """Restore the failover priorities captured before the reorder."""
-    try:
-        await _async_apply_failover_priorities(hub, priorities, park_priority)
-    except aiounifi.AiounifiException as err:
-        LOGGER.error("Failed to restore UniFi WAN failover priorities: %s", err)

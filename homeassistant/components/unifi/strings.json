@@ -92,7 +92,7 @@
       "wan_load_balancing": {
         "name": "Load balancing",
         "state": {
-          "failover_only": "Failover only",
+          "failover-only": "Failover only",
           "weighted": "Weighted"
         }
       }
