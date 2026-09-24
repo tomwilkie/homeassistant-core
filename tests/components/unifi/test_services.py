@@ -4,6 +4,7 @@ from typing import Any
 from unittest.mock import PropertyMock, patch
 
 import aiounifi
+from aiounifi.models.network import Network
 import pytest
 
 from homeassistant.components.unifi.const import CONF_SITE_ID, DOMAIN
@@ -457,9 +458,9 @@ async def test_set_wan_failover_order_request_failed(
     order = [WAN_NETWORKS[1]["_id"], WAN_NETWORKS[0]["_id"]]
     saved: list[tuple[str, int]] = []
 
-    async def mock_save(network: dict[str, Any]) -> None:
+    async def mock_save(network: Network, *, wan_failover_priority: int) -> None:
         """Fail once the second network is parked."""
-        saved.append((network["_id"], network["wan_failover_priority"]))
+        saved.append((network.id, wan_failover_priority))
         if len(saved) == 2:
             raise aiounifi.AiounifiException(
                 {"meta": {"rc": "error", "msg": error_message}}

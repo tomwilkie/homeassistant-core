@@ -4,7 +4,6 @@ Support for controlling the load balancing mode of WAN networks.
 """
 
 from collections.abc import Callable, Coroutine
-from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, override
 
@@ -12,7 +11,7 @@ import aiounifi
 from aiounifi.interfaces.api_handlers import APIHandler, ItemEvent
 from aiounifi.interfaces.networks import Networks
 from aiounifi.models.api import ApiItem
-from aiounifi.models.network import Network
+from aiounifi.models.network import Network, WanLoadBalanceType
 
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
 from homeassistant.const import EntityCategory
@@ -29,11 +28,11 @@ PARALLEL_UPDATES = 1
 
 # Load balance type is group membership, the failover priority still decides which
 # WAN is active, so a weighted WAN is the primary while it is the only member online.
-LOAD_BALANCE_TYPE_TO_OPTION = {
+LOAD_BALANCE_TYPE_TO_OPTION: dict[WanLoadBalanceType, str] = {
     "failover-only": "failover_only",
     "weighted": "weighted",
 }
-OPTION_TO_LOAD_BALANCE_TYPE = {
+OPTION_TO_LOAD_BALANCE_TYPE: dict[str, WanLoadBalanceType] = {
     option: load_balance_type
     for load_balance_type, option in LOAD_BALANCE_TYPE_TO_OPTION.items()
 }
@@ -51,16 +50,19 @@ def async_wan_load_balance_type_option_fn(
     hub: UnifiHub, network: Network
 ) -> str | None:
     """Return current load balance type as an option."""
-    return LOAD_BALANCE_TYPE_TO_OPTION.get(network.wan_load_balance_type or "")
+    if (load_balance_type := network.wan_load_balance_type) is None:
+        return None
+    return LOAD_BALANCE_TYPE_TO_OPTION.get(load_balance_type)
 
 
 async def async_wan_load_balance_type_control_fn(
     hub: UnifiHub, obj_id: str, option: str
 ) -> None:
     """Control load balance type of WAN network."""
-    network = deepcopy(hub.api.networks[obj_id].raw)
-    network["wan_load_balance_type"] = OPTION_TO_LOAD_BALANCE_TYPE[option]
-    await hub.api.networks.save(network)
+    await hub.api.networks.save(
+        hub.api.networks[obj_id],
+        wan_load_balance_type=OPTION_TO_LOAD_BALANCE_TYPE[option],
+    )
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -1,7 +1,6 @@
 """UniFi Network services."""
 
 from collections.abc import Mapping
-from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 import aiounifi
@@ -182,9 +181,9 @@ async def _async_save_failover_priority(
     hub: UnifiHub, network_id: str, priority: int
 ) -> None:
     """Write a new failover priority to a WAN network."""
-    network = deepcopy(hub.api.networks[network_id].raw)
-    network["wan_failover_priority"] = priority
-    await hub.api.networks.save(network)
+    await hub.api.networks.save(
+        hub.api.networks[network_id], wan_failover_priority=priority
+    )
 
 
 async def _async_apply_failover_priorities(

@@ -4,7 +4,6 @@ Support for configuring failover priority and load balance weight of WAN network
 """
 
 from collections.abc import Callable, Coroutine
-from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, override
 
@@ -55,18 +54,18 @@ async def async_wan_failover_priority_control_fn(
     hub: UnifiHub, obj_id: str, value: float
 ) -> None:
     """Control failover priority of WAN network."""
-    network = deepcopy(hub.api.networks[obj_id].raw)
-    network["wan_failover_priority"] = int(value)
-    await hub.api.networks.save(network)
+    await hub.api.networks.save(
+        hub.api.networks[obj_id], wan_failover_priority=int(value)
+    )
 
 
 async def async_wan_load_balance_weight_control_fn(
     hub: UnifiHub, obj_id: str, value: float
 ) -> None:
     """Control load balance weight of WAN network."""
-    network = deepcopy(hub.api.networks[obj_id].raw)
-    network["wan_load_balance_weight"] = int(value)
-    await hub.api.networks.save(network)
+    await hub.api.networks.save(
+        hub.api.networks[obj_id], wan_load_balance_weight=int(value)
+    )
 
 
 @dataclass(frozen=True, kw_only=True)
