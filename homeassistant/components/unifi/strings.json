@@ -207,6 +207,9 @@
     "action_request_failed": {
       "message": "Failed to send action request to UniFi Network"
     },
+    "action_request_rejected": {
+      "message": "UniFi Network rejected the action request: {reason}"
+    },
     "reconnect_client_device_not_found": {
       "message": "Unable to reconnect client: device not found"
     },
@@ -220,13 +223,16 @@
       "message": "Failed to remove clients from UniFi Network"
     },
     "set_wan_failover_order_failed": {
-      "message": "Failed to set WAN failover order in UniFi Network"
+      "message": "Failed to set WAN failover order in UniFi Network: {reason}"
     },
     "wan_failover_priority_conflict": {
       "message": "UniFi Network rejected the WAN failover order because another WAN already uses one of the requested priorities"
     },
     "wan_failover_priority_unsupported": {
       "message": "The selected WAN does not report a failover priority"
+    },
+    "wan_load_balance_weighted_required": {
+      "message": "At least one WAN must use weighted load balancing"
     },
     "wan_network_not_found": {
       "message": "Device {device_id} is not a UniFi WAN network"

@@ -15,6 +15,7 @@ from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers.service import async_register_admin_service
 
 from .const import DOMAIN, LOGGER
+from .errors import controller_error_reason, is_controller_error
 
 if TYPE_CHECKING:
     from .hub import UnifiHub
@@ -243,12 +244,15 @@ async def async_set_wan_failover_order(service_call: ServiceCall) -> None:
         await _async_rollback_failover_priorities(
             hub, original, park_priority + len(targets)
         )
-        translation_key = "set_wan_failover_order_failed"
-        if _is_duplicate_priority_error(err):
-            translation_key = "wan_failover_priority_conflict"
+        if is_controller_error(err, ERROR_DUPLICATE_PRIORITY):
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="wan_failover_priority_conflict",
+            ) from err
         raise HomeAssistantError(
             translation_domain=DOMAIN,
-            translation_key=translation_key,
+            translation_key="set_wan_failover_order_failed",
+            translation_placeholders={"reason": controller_error_reason(err)},
         ) from err
 
 
@@ -260,12 +264,3 @@ async def _async_rollback_failover_priorities(
         await _async_apply_failover_priorities(hub, priorities, park_priority)
     except aiounifi.AiounifiException as err:
         LOGGER.error("Failed to restore UniFi WAN failover priorities: %s", err)
-
-
-def _is_duplicate_priority_error(err: aiounifi.AiounifiException) -> bool:
-    """Check if the controller rejected a duplicate failover priority."""
-    payload = err.args[0] if err.args else None
-    if not isinstance(payload, dict):
-        return False
-    meta = payload.get("meta")
-    return isinstance(meta, dict) and meta.get("msg") == ERROR_DUPLICATE_PRIORITY

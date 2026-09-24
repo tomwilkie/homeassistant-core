@@ -441,10 +441,14 @@ async def test_set_wan_failover_order(
 
 @pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
 @pytest.mark.parametrize(
-    ("error_message", "expected_translation_key"),
+    ("error_message", "expected_translation_key", "expected_placeholders"),
     [
-        (ERROR_DUPLICATE_PRIORITY, "wan_failover_priority_conflict"),
-        ("api.err.Unknown", "set_wan_failover_order_failed"),
+        (ERROR_DUPLICATE_PRIORITY, "wan_failover_priority_conflict", None),
+        (
+            "api.err.Unknown",
+            "set_wan_failover_order_failed",
+            {"reason": "api.err.Unknown"},
+        ),
     ],
 )
 async def test_set_wan_failover_order_request_failed(
@@ -453,6 +457,7 @@ async def test_set_wan_failover_order_request_failed(
     config_entry_setup: MockConfigEntry,
     error_message: str,
     expected_translation_key: str,
+    expected_placeholders: dict[str, str] | None,
 ) -> None:
     """Verify a failing request rolls back the captured priorities."""
     order = [WAN_NETWORKS[1]["_id"], WAN_NETWORKS[0]["_id"]]
@@ -485,6 +490,7 @@ async def test_set_wan_failover_order_request_failed(
 
     assert exc_info.value.translation_domain == DOMAIN
     assert exc_info.value.translation_key == expected_translation_key
+    assert exc_info.value.translation_placeholders == expected_placeholders
     # Parking the second network failed, the captured priorities are restored
     assert saved == [
         (order[0], 4),

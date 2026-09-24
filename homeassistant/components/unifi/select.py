@@ -22,9 +22,13 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import UnifiConfigEntry
 from .const import DOMAIN
 from .entity import UnifiEntity, UnifiEntityDescription, async_wan_device_info_fn
+from .errors import controller_error_reason, is_controller_error
 from .hub import UnifiHub
 
 PARALLEL_UPDATES = 1
+
+# The controller requires at least one WAN to stay in the weighted load balance group.
+ERROR_MISSING_WEIGHTED_WAN = "api.err.MissingWeightedWanNetwork"
 
 # Load balance type is group membership, the failover priority still decides which
 # WAN is active, so a weighted WAN is the primary while it is the only member online.
@@ -59,10 +63,18 @@ async def async_wan_load_balance_type_control_fn(
     hub: UnifiHub, obj_id: str, option: str
 ) -> None:
     """Control load balance type of WAN network."""
-    await hub.api.networks.save(
-        hub.api.networks[obj_id],
-        wan_load_balance_type=OPTION_TO_LOAD_BALANCE_TYPE[option],
-    )
+    try:
+        await hub.api.networks.save(
+            hub.api.networks[obj_id],
+            wan_load_balance_type=OPTION_TO_LOAD_BALANCE_TYPE[option],
+        )
+    except aiounifi.AiounifiException as err:
+        if is_controller_error(err, ERROR_MISSING_WEIGHTED_WAN):
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="wan_load_balance_weighted_required",
+            ) from err
+        raise
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -121,7 +133,8 @@ class UnifiSelectEntity[HandlerT: APIHandler, ApiItemT: ApiItem](
         except aiounifi.AiounifiException as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
-                translation_key="action_request_failed",
+                translation_key="action_request_rejected",
+                translation_placeholders={"reason": controller_error_reason(err)},
             ) from err
         await self.async_refresh_after_control()
 

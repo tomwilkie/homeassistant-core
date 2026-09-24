@@ -1,6 +1,7 @@
 """UniFi Network number platform tests."""
 
 from copy import deepcopy
+from http import HTTPStatus
 from typing import Any
 from unittest.mock import patch
 
@@ -19,7 +20,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 
-from .conftest import WAN_NETWORKS, ConfigEntryFactoryType, WebsocketMessageMock
+from .conftest import (
+    DEFAULT_HOST,
+    DEFAULT_SITE,
+    WAN_NETWORKS,
+    ConfigEntryFactoryType,
+    WebsocketMessageMock,
+)
 
 from tests.common import MockConfigEntry, snapshot_platform
 from tests.test_util.aiohttp import AiohttpClientMocker
@@ -124,21 +131,41 @@ async def test_websocket_update(
     assert hass.states.get(FAILOVER_PRIORITY_ENTITY_ID).state == "3"
 
 
+NETWORK_URL = (
+    f"https://{DEFAULT_HOST}:1234/api/s/{DEFAULT_SITE}"
+    f"/rest/networkconf/{WAN_NETWORKS[0]['_id']}"
+)
+
+
 @pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
+@pytest.mark.parametrize(
+    ("response", "expected_reason"),
+    [
+        pytest.param(
+            {
+                "json": {"meta": {"rc": "error", "msg": "api.err.Unknown"}, "data": []},
+                "headers": {"content-type": CONTENT_TYPE_JSON},
+            },
+            "api.err.Unknown",
+            id="controller_error",
+        ),
+        pytest.param(
+            {"status": HTTPStatus.BAD_GATEWAY},
+            f"Call {NETWORK_URL} received 502 bad gateway",
+            id="transport_error",
+        ),
+    ],
+)
+@pytest.mark.usefixtures("config_entry_setup")
 async def test_set_value_request_failed(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
-    config_entry_setup: MockConfigEntry,
+    response: dict[str, Any],
+    expected_reason: str,
 ) -> None:
-    """Verify a failing request raises a translated error."""
+    """Verify a failing request raises a translated error with the reason."""
     aioclient_mock.clear_requests()
-    aioclient_mock.put(
-        f"https://{config_entry_setup.data[CONF_HOST]}:1234"
-        f"/api/s/{config_entry_setup.data[CONF_SITE_ID]}"
-        f"/rest/networkconf/{WAN_NETWORKS[0]['_id']}",
-        json={"meta": {"rc": "error", "msg": "api.err.Unknown"}, "data": []},
-        headers={"content-type": CONTENT_TYPE_JSON},
-    )
+    aioclient_mock.put(NETWORK_URL, **response)
 
     with pytest.raises(HomeAssistantError) as exc_info:
         await hass.services.async_call(
@@ -147,4 +174,5 @@ async def test_set_value_request_failed(
             {ATTR_ENTITY_ID: FAILOVER_PRIORITY_ENTITY_ID, ATTR_VALUE: 2},
             blocking=True,
         )
-    assert exc_info.value.translation_key == "action_request_failed"
+    assert exc_info.value.translation_key == "action_request_rejected"
+    assert exc_info.value.translation_placeholders == {"reason": expected_reason}

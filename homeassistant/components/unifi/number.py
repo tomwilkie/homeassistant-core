@@ -26,6 +26,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import UnifiConfigEntry
 from .const import DOMAIN
 from .entity import UnifiEntity, UnifiEntityDescription, async_wan_device_info_fn
+from .errors import controller_error_reason
 from .hub import UnifiHub
 
 PARALLEL_UPDATES = 1
@@ -143,7 +144,8 @@ class UnifiNumberEntity[HandlerT: APIHandler, ApiItemT: ApiItem](
         except aiounifi.AiounifiException as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
-                translation_key="action_request_failed",
+                translation_key="action_request_rejected",
+                translation_placeholders={"reason": controller_error_reason(err)},
             ) from err
         await self.async_refresh_after_control()
 
