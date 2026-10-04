@@ -33,6 +33,7 @@ from homeassistant.components.unifi.const import (
     CONF_TRACK_WIRED_CLIENTS,
     DEFAULT_DETECTION_TIME,
     DEVICE_STATES,
+    DOMAIN,
 )
 from homeassistant.config_entries import RELOAD_AFTER_UPDATE_DELAY
 from homeassistant.const import (
@@ -2029,6 +2030,8 @@ async def test_device_uptime(
         ]
     ],
 )
+@pytest.mark.parametrize("config_entry_options", [WAN_ENABLED_OPTIONS])
+@pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
 @pytest.mark.parametrize(
     (
         "wan",
@@ -2133,10 +2136,12 @@ async def test_wan_monitor_latency(
     updated_state: str,
 ) -> None:
     """Verify that wan latency sensors are working as expected."""
-    entity_id = f"sensor.mock_name_{monitor_id}_latency"
+    entity_id = entity_registry.async_get_entity_id(
+        SENSOR_DOMAIN, DOMAIN, f"{monitor_id}_latency-10:00:00:00:01:01"
+    )
 
-    assert len(hass.states.async_all()) == 17
-    assert len(hass.states.async_entity_ids(SENSOR_DOMAIN)) == 13
+    assert len(hass.states.async_all()) == 20
+    assert len(hass.states.async_entity_ids(SENSOR_DOMAIN)) == 16
     assert entity_registry.async_get(entity_id).disabled_by is None
 
     # Verify sensor state
@@ -2200,6 +2205,8 @@ async def test_wan_monitor_latency(
         ]
     ],
 )
+@pytest.mark.parametrize("config_entry_options", [WAN_ENABLED_OPTIONS])
+@pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
 @pytest.mark.usefixtures("config_entry_setup")
 async def test_wan_monitor_latency_with_no_entries(
     hass: HomeAssistant,
@@ -2207,10 +2214,10 @@ async def test_wan_monitor_latency_with_no_entries(
 ) -> None:
     """Verify that wan latency sensors is not created if there is no data."""
 
-    assert len(hass.states.async_all()) == 9
-    assert len(hass.states.async_entity_ids(SENSOR_DOMAIN)) == 5
+    assert len(hass.states.async_all()) == 12
+    assert len(hass.states.async_entity_ids(SENSOR_DOMAIN)) == 8
 
-    latency_entry = entity_registry.async_get("sensor.mock_name_google_wan_latency")
+    latency_entry = entity_registry.async_get("sensor.internet_1_google_latency")
     assert latency_entry is None
 
 
@@ -2275,6 +2282,8 @@ async def test_wan_monitor_latency_with_no_uptime(
         ]
     ],
 )
+@pytest.mark.parametrize("config_entry_options", [WAN_ENABLED_OPTIONS])
+@pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
 @pytest.mark.usefixtures("config_entry_setup")
 async def test_wan_monitor_latency_without_monitors_key(
     hass: HomeAssistant,
@@ -2282,10 +2291,10 @@ async def test_wan_monitor_latency_without_monitors_key(
 ) -> None:
     """Verify setup succeeds when a WAN's uptime stats omit the 'monitors' key."""
 
-    assert len(hass.states.async_all()) == 8
-    assert len(hass.states.async_entity_ids(SENSOR_DOMAIN)) == 4
+    assert len(hass.states.async_all()) == 11
+    assert len(hass.states.async_entity_ids(SENSOR_DOMAIN)) == 7
 
-    latency_entry = entity_registry.async_get("sensor.mock_name_google_wan_latency")
+    latency_entry = entity_registry.async_get("sensor.internet_1_google_latency")
     assert latency_entry is None
 
 
@@ -2319,18 +2328,20 @@ WAN_STATS_DEVICE = {
 }
 
 
+@pytest.mark.parametrize("config_entry_options", [WAN_ENABLED_OPTIONS])
+@pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
 @pytest.mark.parametrize("device_payload", [[WAN_STATS_DEVICE]])
 @pytest.mark.parametrize(
     ("entity_id", "expected_state"),
     [
-        pytest.param("sensor.mock_name_wan_latency", "24", id="latency"),
+        pytest.param("sensor.internet_1_latency", "24", id="latency"),
         pytest.param(
-            "sensor.mock_name_wan_availability",
+            "sensor.internet_1_availability",
             "99.7367999851704",
             id="availability",
         ),
         pytest.param(
-            "sensor.mock_name_wan_uptime",
+            "sensor.internet_1_uptime",
             "2020-12-30T10:56:38+00:00",
             id="uptime",
         ),
@@ -2347,20 +2358,18 @@ async def test_wan_stats_sensors(
     assert hass.states.get(entity_id).state == expected_state
 
 
+@pytest.mark.parametrize("config_entry_options", [WAN_ENABLED_OPTIONS])
+@pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
 @pytest.mark.parametrize("device_payload", [[WAN_STATS_DEVICE]])
 @pytest.mark.parametrize(
     "entity_id",
     [
-        pytest.param("sensor.mock_name_wan2_latency", id="field_missing_latency"),
-        pytest.param(
-            "sensor.mock_name_wan2_availability", id="field_missing_availability"
-        ),
-        pytest.param("sensor.mock_name_wan2_uptime", id="field_missing_uptime"),
-        pytest.param("sensor.mock_name_wan3_latency", id="group_absent_latency"),
-        pytest.param(
-            "sensor.mock_name_wan3_availability", id="group_absent_availability"
-        ),
-        pytest.param("sensor.mock_name_wan3_uptime", id="group_absent_uptime"),
+        pytest.param("sensor.internet_2_latency", id="field_missing_latency"),
+        pytest.param("sensor.internet_2_availability", id="field_missing_availability"),
+        pytest.param("sensor.internet_2_uptime", id="field_missing_uptime"),
+        pytest.param("sensor.unifi_5g_a_latency", id="group_absent_latency"),
+        pytest.param("sensor.unifi_5g_a_availability", id="group_absent_availability"),
+        pytest.param("sensor.unifi_5g_a_uptime", id="group_absent_uptime"),
     ],
 )
 @pytest.mark.usefixtures("entity_registry_enabled_by_default", "config_entry_setup")
@@ -2894,53 +2903,24 @@ async def test_wan_group_sensors_entity(
 
 WAN_DEVICE = {"identifiers": {("unifi", WAN_NETWORKS[0]["_id"])}}
 WAN3_DEVICE = {"identifiers": {("unifi", WAN_NETWORKS[2]["_id"])}}
-GATEWAY_DEVICE = {"connections": {(dr.CONNECTION_NETWORK_MAC, WAN_GATEWAY["mac"])}}
 
 
 @pytest.mark.parametrize("config_entry_options", [WAN_ENABLED_OPTIONS])
+@pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
 @pytest.mark.parametrize("device_payload", [[WAN_UPTIME_STATS_GATEWAY]])
 @pytest.mark.parametrize(
-    ("network_payload", "entity_id", "device"),
+    ("entity_id", "device"),
     [
         pytest.param(
-            WAN_NETWORKS,
             "sensor.internet_1_google_latency",
             WAN_DEVICE,
             id="wan_device_target_latency",
         ),
-        pytest.param(
-            WAN_NETWORKS, "sensor.internet_1_latency", WAN_DEVICE, id="wan_device"
-        ),
-        pytest.param(
-            WAN_NETWORKS,
-            "sensor.unifi_5g_a_availability",
-            WAN3_DEVICE,
-            id="wan3_device",
-        ),
-        pytest.param(
-            [],
-            "sensor.gateway_google_wan_latency",
-            GATEWAY_DEVICE,
-            id="no_networks_target_latency",
-        ),
-        pytest.param(
-            [], "sensor.gateway_wan3_uptime", GATEWAY_DEVICE, id="no_networks_wan3"
-        ),
-        pytest.param(
-            [WAN_NETWORKS[0]],
-            "sensor.internet_1_google_latency",
-            WAN_DEVICE,
-            id="network_known",
-        ),
-        pytest.param(
-            [WAN_NETWORKS[0]],
-            "sensor.gateway_wan3_latency",
-            GATEWAY_DEVICE,
-            id="network_unknown",
-        ),
+        pytest.param("sensor.internet_1_latency", WAN_DEVICE, id="wan_device"),
+        pytest.param("sensor.unifi_5g_a_availability", WAN3_DEVICE, id="wan3_device"),
     ],
 )
-@pytest.mark.usefixtures("entity_registry_enabled_by_default", "config_entry_setup")
+@pytest.mark.usefixtures("config_entry_setup")
 async def test_wan_group_sensors_device(
     hass: HomeAssistant,
     entity_registry: er.EntityRegistry,
@@ -2948,14 +2928,51 @@ async def test_wan_group_sensors_device(
     entity_id: str,
     device: dict[str, set[tuple[str, str]]],
 ) -> None:
-    """Verify WAN group sensors are on their WAN device, else on the gateway."""
+    """Verify WAN group sensors are regular sensors on their WAN device."""
     assert hass.states.get(entity_id) is not None
+    entry = entity_registry.async_get(entity_id)
+    assert entry.entity_category is None
+    assert entry.disabled_by is None
     assert [
         device_entry.id for device_entry in device_registry.async_get_devices(**device)
-    ] == [entity_registry.async_get(entity_id).device_id]
+    ] == [entry.device_id]
 
 
-@pytest.mark.parametrize("config_entry_options", [WAN_ENABLED_OPTIONS])
+@pytest.mark.parametrize("device_payload", [[WAN_UPTIME_STATS_GATEWAY]])
+@pytest.mark.parametrize(
+    ("config_entry_options", "network_payload", "unique_id"),
+    [
+        pytest.param(
+            {},
+            WAN_NETWORKS,
+            GATEWAY_GOOGLE_WAN_LATENCY_UNIQUE_ID,
+            id="disabled_target_latency",
+        ),
+        pytest.param(
+            {}, WAN_NETWORKS, "wan_latency_average-00:00:00:00:02:01", id="disabled"
+        ),
+        pytest.param(
+            WAN_ENABLED_OPTIONS,
+            [],
+            GATEWAY_GOOGLE_WAN_LATENCY_UNIQUE_ID,
+            id="no_networks_target_latency",
+        ),
+        pytest.param(
+            WAN_ENABLED_OPTIONS,
+            [WAN_NETWORKS[0]],
+            "wan3_uptime-00:00:00:00:02:01",
+            id="network_unknown",
+        ),
+    ],
+)
+@pytest.mark.usefixtures("config_entry_setup")
+async def test_wan_group_sensors_not_created(
+    entity_registry: er.EntityRegistry, unique_id: str
+) -> None:
+    """Verify WAN group sensors need the WAN option and their WAN network."""
+    assert entity_registry.async_get_entity_id(SENSOR_DOMAIN, DOMAIN, unique_id) is None
+
+
 @pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
 @pytest.mark.parametrize("device_payload", [[WAN_UPTIME_STATS_GATEWAY]])
 async def test_wan_latency_sensor_moves_to_wan_device(
@@ -2965,7 +2982,7 @@ async def test_wan_latency_sensor_moves_to_wan_device(
     config_entry: MockConfigEntry,
     config_entry_factory: ConfigEntryFactoryType,
 ) -> None:
-    """Verify an existing latency sensor keeps its entity ID on its WAN device."""
+    """Verify an existing latency sensor follows the WAN option, keeping its entity ID."""
     gateway = device_registry.async_get_or_create(
         config_entry_id=config_entry.entry_id,
         connections={(dr.CONNECTION_NETWORK_MAC, WAN_GATEWAY["mac"])},
@@ -2973,21 +2990,32 @@ async def test_wan_latency_sensor_moves_to_wan_device(
     )
     entity_registry.async_get_or_create(
         SENSOR_DOMAIN,
-        "unifi",
+        DOMAIN,
         GATEWAY_GOOGLE_WAN_LATENCY_UNIQUE_ID,
         config_entry=config_entry,
         device_id=gateway.id,
         suggested_object_id="gateway_google_wan_latency",
     )
+    entity_id = "sensor.gateway_google_wan_latency"
 
     await config_entry_factory()
+    assert hass.states.get(entity_id) is None
 
-    entity_id = entity_registry.async_get_entity_id(
-        SENSOR_DOMAIN, "unifi", GATEWAY_GOOGLE_WAN_LATENCY_UNIQUE_ID
+    hass.config_entries.async_update_entry(config_entry, options=WAN_ENABLED_OPTIONS)
+    await hass.async_block_till_done()
+
+    assert (
+        entity_registry.async_get_entity_id(
+            SENSOR_DOMAIN, DOMAIN, GATEWAY_GOOGLE_WAN_LATENCY_UNIQUE_ID
+        )
+        == entity_id
     )
-    assert entity_id == "sensor.gateway_google_wan_latency"
     assert hass.states.get(entity_id).state == "8"
     assert [
         device_entry.id
         for device_entry in device_registry.async_get_devices(**WAN_DEVICE)
     ] == [entity_registry.async_get(entity_id).device_id]
+
+    hass.config_entries.async_update_entry(config_entry, options={})
+    await hass.async_block_till_done()
+    assert hass.states.get(entity_id) is None

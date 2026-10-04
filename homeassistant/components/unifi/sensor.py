@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from functools import partial
-from typing import Literal, cast, override
+from typing import TYPE_CHECKING, Literal, cast, override
 
 import aiounifi
 from aiounifi.interfaces.api_handlers import APIHandler, ItemEvent
@@ -356,27 +356,22 @@ def _wan_network(hub: UnifiHub, wan: WanName) -> Network | None:
 def async_device_wan_device_info_fn(
     wan: WanName, hub: UnifiHub, obj_id: str
 ) -> DeviceInfo:
-    """Place a gateway WAN group sensor on the device of its WAN network.
+    """Place a gateway WAN group sensor on the device of its WAN network."""
+    network = _wan_network(hub, wan)
 
-    Falls back to the gateway when the WAN network is unknown, for example when
-    the network configuration could not be read.
-    """
-    if (network := _wan_network(hub, wan)) is None:
-        return async_device_device_info_fn(hub, obj_id)
+    if TYPE_CHECKING:
+        # Checked by the WAN group supported functions
+        assert network
+
     return async_wan_device_info_fn(hub, network.id)
 
 
 @callback
-def async_device_wan_translation_key_fn(
-    wan: WanName, gateway_translation_key: str, hub: UnifiHub, obj_id: str
-) -> str | None:
-    """Name the WAN group in the name only when the sensor falls back to the gateway.
-
-    The gateway holds the sensors of every WAN group, which the name has to tell apart.
-    """
-    if _wan_network(hub, wan) is None:
-        return gateway_translation_key
-    return None
+def async_device_wan_network_supported_fn(
+    wan: WanName, hub: UnifiHub, obj_id: str
+) -> bool:
+    """Determine if the controller reports a WAN network for this WAN group."""
+    return _wan_network(hub, wan) is not None
 
 
 @callback
@@ -427,20 +422,19 @@ def make_wan_latency_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
         return UnifiSensorEntityDescription[Devices, Device](
             key=f"{name_wan} latency",
             translation_key="wan_latency",
-            translation_key_fn=partial(
-                async_device_wan_translation_key_fn, wan, "gateway_wan_latency"
-            ),
             native_unit_of_measurement=UnitOfTime.MILLISECONDS,
             state_class=SensorStateClass.MEASUREMENT,
             device_class=SensorDeviceClass.DURATION,
+            allowed_fn=async_wan_allowed_fn,
             api_handler_fn=lambda api: api.devices,
             available_fn=async_device_available_fn,
             device_info_fn=partial(async_device_wan_device_info_fn, wan),
             object_fn=lambda api, obj_id: api.devices[obj_id],
+            supported_fn=partial(async_device_wan_network_supported_fn, wan),
             discovery_fn=partial(
                 async_device_wan_latency_discovery_fn, wan, monitor_target
             ),
-            translation_placeholders_fn=lambda _: {"target": name, "wan": wan},
+            translation_placeholders_fn=lambda _: {"target": name},
             unique_id_fn=lambda hub, obj_id: f"{slugify(name_wan)}_latency-{obj_id}",
             value_fn=partial(async_device_wan_latency_value_fn, wan, monitor_target),
         )
@@ -476,8 +470,11 @@ def async_device_wan_stat_supported_fn(
     hub: UnifiHub,
     obj_id: str,
 ) -> bool:
-    """Determine if a device reports this figure for this WAN group."""
-    return _device_wan_stat(wan, field, hub.api.devices[obj_id]) is not None
+    """Determine if a device reports this figure for a known WAN network."""
+    return (
+        _wan_network(hub, wan) is not None
+        and _device_wan_stat(wan, field, hub.api.devices[obj_id]) is not None
+    )
 
 
 @callback
@@ -517,12 +514,10 @@ def make_wan_stats_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
         return UnifiSensorEntityDescription[Devices, Device](
             key=f"{wan} latency average",
             translation_key="wan_latency_average",
-            translation_key_fn=partial(
-                async_device_wan_translation_key_fn, wan, "gateway_wan_latency_average"
-            ),
             device_class=SensorDeviceClass.DURATION,
             native_unit_of_measurement=UnitOfTime.MILLISECONDS,
             state_class=SensorStateClass.MEASUREMENT,
+            allowed_fn=async_wan_allowed_fn,
             api_handler_fn=lambda api: api.devices,
             available_fn=async_device_available_fn,
             device_info_fn=partial(async_device_wan_device_info_fn, wan),
@@ -530,7 +525,6 @@ def make_wan_stats_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
             supported_fn=partial(
                 async_device_wan_stat_supported_fn, wan, "latency_average"
             ),
-            translation_placeholders_fn=lambda _: {"wan": wan},
             unique_id_fn=lambda hub, obj_id: f"{slugify(wan)}_latency_average-{obj_id}",
             value_fn=partial(async_device_wan_stat_value_fn, wan, "latency_average"),
         )
@@ -541,12 +535,10 @@ def make_wan_stats_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
         return UnifiSensorEntityDescription[Devices, Device](
             key=f"{wan} availability",
             translation_key="wan_availability",
-            translation_key_fn=partial(
-                async_device_wan_translation_key_fn, wan, "gateway_wan_availability"
-            ),
             native_unit_of_measurement=PERCENTAGE,
             state_class=SensorStateClass.MEASUREMENT,
             suggested_display_precision=1,
+            allowed_fn=async_wan_allowed_fn,
             api_handler_fn=lambda api: api.devices,
             available_fn=async_device_available_fn,
             device_info_fn=partial(async_device_wan_device_info_fn, wan),
@@ -554,7 +546,6 @@ def make_wan_stats_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
             supported_fn=partial(
                 async_device_wan_stat_supported_fn, wan, "availability"
             ),
-            translation_placeholders_fn=lambda _: {"wan": wan},
             unique_id_fn=lambda hub, obj_id: f"{slugify(wan)}_availability-{obj_id}",
             value_fn=partial(async_device_wan_stat_value_fn, wan, "availability"),
         )
@@ -564,17 +555,13 @@ def make_wan_stats_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
     ) -> UnifiSensorEntityDescription:
         return UnifiSensorEntityDescription[Devices, Device](
             key=f"{wan} uptime",
-            translation_key="wan_uptime",
-            translation_key_fn=partial(
-                async_device_wan_translation_key_fn, wan, "gateway_wan_uptime"
-            ),
             device_class=SensorDeviceClass.UPTIME,
+            allowed_fn=async_wan_allowed_fn,
             api_handler_fn=lambda api: api.devices,
             available_fn=async_device_available_fn,
             device_info_fn=partial(async_device_wan_device_info_fn, wan),
             object_fn=lambda api, obj_id: api.devices[obj_id],
             supported_fn=partial(async_device_wan_stat_supported_fn, wan, "uptime"),
-            translation_placeholders_fn=lambda _: {"wan": wan},
             unique_id_fn=lambda hub, obj_id: f"{slugify(wan)}_uptime-{obj_id}",
             value_fn=partial(async_device_wan_uptime_value_fn, wan),
             value_changed_fn=async_uptime_value_changed_fn,
@@ -681,8 +668,6 @@ class UnifiSensorEntityDescription[HandlerT: APIHandler, ApiItemT: ApiItem](
         bool,
     ] = lambda old, new: old != new
     """Calculate whether a state change should be recorded."""
-    translation_key_fn: Callable[[UnifiHub, str], str | None] = lambda hub, obj_id: None
-    """Override translation_key based on hub and obj_id, None keeps it."""
 
 
 ENTITY_DESCRIPTIONS: tuple[UnifiSensorEntityDescription, ...] = (
@@ -1226,17 +1211,6 @@ class UnifiSensorEntity[HandlerT: APIHandler, ApiItemT: ApiItem](
     """Base representation of a UniFi sensor."""
 
     entity_description: UnifiSensorEntityDescription[HandlerT, ApiItemT]
-
-    def __init__(
-        self,
-        obj_id: str,
-        hub: UnifiHub,
-        description: UnifiSensorEntityDescription[HandlerT, ApiItemT],
-    ) -> None:
-        """Set up UniFi sensor entity."""
-        super().__init__(obj_id, hub, description)
-        if (translation_key := description.translation_key_fn(hub, obj_id)) is not None:
-            self._attr_translation_key = translation_key
 
     @callback
     def _make_disconnected(self, *_: core_Event) -> None:

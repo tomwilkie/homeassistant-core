@@ -118,18 +118,6 @@
       "device_uplink_mac": {
         "name": "Uplink MAC"
       },
-      "gateway_wan_availability": {
-        "name": "{wan} availability"
-      },
-      "gateway_wan_latency": {
-        "name": "{target} {wan} latency"
-      },
-      "gateway_wan_latency_average": {
-        "name": "{wan} latency"
-      },
-      "gateway_wan_uptime": {
-        "name": "{wan} uptime"
-      },
       "outlet_power": {
         "name": "{outlet_name} outlet power"
       },
@@ -193,9 +181,6 @@
           "online": "Online"
         }
       },
-      "wan_uptime": {
-        "name": "Uptime"
-      },
       "wired_client_link_speed": {
         "name": "Link speed"
       },
@@ -254,7 +239,7 @@
           "block_client": "Select clients whose network access you want to control via switches.",
           "track_clients": "Create device tracker entities for network clients.",
           "track_devices": "Create device tracker entities for Ubiquiti network devices.",
-          "track_wan_networks": "Create a device per WAN network, with its status."
+          "track_wan_networks": "Create a device per WAN network, with its status, latency, availability and uptime sensors."
         },
         "sections": {
           "more_options": {

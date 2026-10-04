@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from copy import deepcopy
+from types import MappingProxyType
 from typing import Any
 
 from aiounifi.models.message import MessageKey
@@ -18,6 +19,8 @@ from .conftest import (
     DEFAULT_HOST,
     DEFAULT_PORT,
     DEFAULT_SITE,
+    WAN_ENABLED_OPTIONS,
+    WAN_NETWORKS,
     ConfigEntryFactoryType,
     WebsocketMessageMock,
     WebsocketStateManager,
@@ -58,7 +61,7 @@ TELEMETRY_CASES = [
     pytest.param(
         "uptime_stats",
         {"WAN": {"monitors": [{"target": "google.com", "latency_average": 53}]}},
-        ("google_wan_latency",),
+        ("google_latency",),
         ("53",),
         id="wan",
     ),
@@ -104,6 +107,18 @@ CAPABILITY_CASES = [
         id="outlet-metering",
     ),
 ]
+
+
+@pytest.fixture(name="config_entry_options")
+def fixture_config_entry_options() -> MappingProxyType[str, Any]:
+    """Track WAN networks, which the WAN latency sensors require."""
+    return WAN_ENABLED_OPTIONS
+
+
+@pytest.fixture(name="network_payload")
+def fixture_network_payload() -> list[dict[str, Any]]:
+    """Name the WAN network like the device so all sensors share an entity ID prefix."""
+    return [{**WAN_NETWORKS[0], "name": DEVICE["name"]}]
 
 
 @pytest.fixture
