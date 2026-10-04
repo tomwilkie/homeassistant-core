@@ -118,6 +118,18 @@
       "device_uplink_mac": {
         "name": "Uplink MAC"
       },
+      "gateway_wan_availability": {
+        "name": "{wan} availability"
+      },
+      "gateway_wan_latency": {
+        "name": "{target} {wan} latency"
+      },
+      "gateway_wan_latency_average": {
+        "name": "{wan} latency"
+      },
+      "gateway_wan_uptime": {
+        "name": "{wan} uptime"
+      },
       "outlet_power": {
         "name": "{outlet_name} outlet power"
       },
@@ -164,13 +176,13 @@
         "name": "Output voltage"
       },
       "wan_availability": {
-        "name": "{wan} availability"
+        "name": "Availability"
       },
       "wan_latency": {
-        "name": "{target} {wan} latency"
+        "name": "{target} latency"
       },
       "wan_latency_average": {
-        "name": "{wan} latency"
+        "name": "Latency"
       },
       "wan_status": {
         "name": "Status",
@@ -182,7 +194,7 @@
         }
       },
       "wan_uptime": {
-        "name": "{wan} uptime"
+        "name": "Uptime"
       },
       "wired_client_link_speed": {
         "name": "Link speed"

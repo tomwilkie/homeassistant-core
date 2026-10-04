@@ -53,6 +53,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import Event as core_Event, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
@@ -339,6 +340,46 @@ def async_wan_status_value_fn(hub: UnifiHub, network: Network) -> str | None:
 
 
 @callback
+def _wan_network(hub: UnifiHub, wan: WanName) -> Network | None:
+    """Return the WAN network of a WAN group, if the controller reports one."""
+    return next(
+        (
+            network
+            for network in hub.api.networks.values()
+            if network.is_wan and network.wan_networkgroup == wan
+        ),
+        None,
+    )
+
+
+@callback
+def async_device_wan_device_info_fn(
+    wan: WanName, hub: UnifiHub, obj_id: str
+) -> DeviceInfo:
+    """Place a gateway WAN group sensor on the device of its WAN network.
+
+    Falls back to the gateway when the WAN network is unknown, for example when
+    the network configuration could not be read.
+    """
+    if (network := _wan_network(hub, wan)) is None:
+        return async_device_device_info_fn(hub, obj_id)
+    return async_wan_device_info_fn(hub, network.id)
+
+
+@callback
+def async_device_wan_translation_key_fn(
+    wan: WanName, gateway_translation_key: str, hub: UnifiHub, obj_id: str
+) -> str | None:
+    """Name the WAN group in the name only when the sensor falls back to the gateway.
+
+    The gateway holds the sensors of every WAN group, which the name has to tell apart.
+    """
+    if _wan_network(hub, wan) is None:
+        return gateway_translation_key
+    return None
+
+
+@callback
 def async_device_wan_latency_discovery_fn(
     wan: WanName,
     monitor_target: str,
@@ -386,6 +427,9 @@ def make_wan_latency_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
         return UnifiSensorEntityDescription[Devices, Device](
             key=f"{name_wan} latency",
             translation_key="wan_latency",
+            translation_key_fn=partial(
+                async_device_wan_translation_key_fn, wan, "gateway_wan_latency"
+            ),
             entity_category=EntityCategory.DIAGNOSTIC,
             native_unit_of_measurement=UnitOfTime.MILLISECONDS,
             state_class=SensorStateClass.MEASUREMENT,
@@ -393,7 +437,7 @@ def make_wan_latency_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
             entity_registry_enabled_default=False,
             api_handler_fn=lambda api: api.devices,
             available_fn=async_device_available_fn,
-            device_info_fn=async_device_device_info_fn,
+            device_info_fn=partial(async_device_wan_device_info_fn, wan),
             object_fn=lambda api, obj_id: api.devices[obj_id],
             discovery_fn=partial(
                 async_device_wan_latency_discovery_fn, wan, monitor_target
@@ -475,6 +519,9 @@ def make_wan_stats_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
         return UnifiSensorEntityDescription[Devices, Device](
             key=f"{wan} latency average",
             translation_key="wan_latency_average",
+            translation_key_fn=partial(
+                async_device_wan_translation_key_fn, wan, "gateway_wan_latency_average"
+            ),
             device_class=SensorDeviceClass.DURATION,
             entity_category=EntityCategory.DIAGNOSTIC,
             native_unit_of_measurement=UnitOfTime.MILLISECONDS,
@@ -482,7 +529,7 @@ def make_wan_stats_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
             entity_registry_enabled_default=False,
             api_handler_fn=lambda api: api.devices,
             available_fn=async_device_available_fn,
-            device_info_fn=async_device_device_info_fn,
+            device_info_fn=partial(async_device_wan_device_info_fn, wan),
             object_fn=lambda api, obj_id: api.devices[obj_id],
             supported_fn=partial(
                 async_device_wan_stat_supported_fn, wan, "latency_average"
@@ -498,6 +545,9 @@ def make_wan_stats_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
         return UnifiSensorEntityDescription[Devices, Device](
             key=f"{wan} availability",
             translation_key="wan_availability",
+            translation_key_fn=partial(
+                async_device_wan_translation_key_fn, wan, "gateway_wan_availability"
+            ),
             entity_category=EntityCategory.DIAGNOSTIC,
             native_unit_of_measurement=PERCENTAGE,
             state_class=SensorStateClass.MEASUREMENT,
@@ -505,7 +555,7 @@ def make_wan_stats_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
             entity_registry_enabled_default=False,
             api_handler_fn=lambda api: api.devices,
             available_fn=async_device_available_fn,
-            device_info_fn=async_device_device_info_fn,
+            device_info_fn=partial(async_device_wan_device_info_fn, wan),
             object_fn=lambda api, obj_id: api.devices[obj_id],
             supported_fn=partial(
                 async_device_wan_stat_supported_fn, wan, "availability"
@@ -521,12 +571,15 @@ def make_wan_stats_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
         return UnifiSensorEntityDescription[Devices, Device](
             key=f"{wan} uptime",
             translation_key="wan_uptime",
+            translation_key_fn=partial(
+                async_device_wan_translation_key_fn, wan, "gateway_wan_uptime"
+            ),
             device_class=SensorDeviceClass.UPTIME,
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,
             api_handler_fn=lambda api: api.devices,
             available_fn=async_device_available_fn,
-            device_info_fn=async_device_device_info_fn,
+            device_info_fn=partial(async_device_wan_device_info_fn, wan),
             object_fn=lambda api, obj_id: api.devices[obj_id],
             supported_fn=partial(async_device_wan_stat_supported_fn, wan, "uptime"),
             translation_placeholders_fn=lambda _: {"wan": wan},
@@ -636,6 +689,8 @@ class UnifiSensorEntityDescription[HandlerT: APIHandler, ApiItemT: ApiItem](
         bool,
     ] = lambda old, new: old != new
     """Calculate whether a state change should be recorded."""
+    translation_key_fn: Callable[[UnifiHub, str], str | None] = lambda hub, obj_id: None
+    """Override translation_key based on hub and obj_id, None keeps it."""
 
 
 ENTITY_DESCRIPTIONS: tuple[UnifiSensorEntityDescription, ...] = (
@@ -1179,6 +1234,17 @@ class UnifiSensorEntity[HandlerT: APIHandler, ApiItemT: ApiItem](
     """Base representation of a UniFi sensor."""
 
     entity_description: UnifiSensorEntityDescription[HandlerT, ApiItemT]
+
+    def __init__(
+        self,
+        obj_id: str,
+        hub: UnifiHub,
+        description: UnifiSensorEntityDescription[HandlerT, ApiItemT],
+    ) -> None:
+        """Set up UniFi sensor entity."""
+        super().__init__(obj_id, hub, description)
+        if (translation_key := description.translation_key_fn(hub, obj_id)) is not None:
+            self._attr_translation_key = translation_key
 
     @callback
     def _make_disconnected(self, *_: core_Event) -> None:

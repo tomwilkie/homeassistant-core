@@ -2848,3 +2848,162 @@ async def test_wan_status_not_written_without_change(
     await hass.async_block_till_done()
 
     assert written_entity_ids == []
+
+
+# WAN reports monitors and aggregates, the unplugged WAN2 is absent and the 5G
+# WAN3 reports aggregates only.
+WAN_UPTIME_STATS_GATEWAY = {
+    **WAN_GATEWAY,
+    "uptime_stats": {
+        "WAN": {
+            "availability": 100.0,
+            "latency_average": 15,
+            "time_period": 86400,
+            "uptime": 808277,
+            "monitors": [
+                {
+                    "availability": 100.0,
+                    "latency_average": 9,
+                    "target": "www.microsoft.com",
+                    "type": "icmp",
+                },
+                {
+                    "availability": 100.0,
+                    "latency_average": 8,
+                    "target": "google.com",
+                    "type": "icmp",
+                },
+                {
+                    "availability": 0.0,
+                    "target": "1.1.1.1",
+                    "type": "icmp",
+                },
+            ],
+        },
+        "WAN3": {
+            "availability": 99.73679998517036,
+            "latency_average": 24,
+            "time_period": 22745,
+            "uptime": 137062,
+        },
+    },
+}
+GATEWAY_GOOGLE_WAN_LATENCY_UNIQUE_ID = "google_wan_latency-00:00:00:00:02:01"
+
+
+@pytest.mark.parametrize("config_entry_options", [WAN_ENABLED_OPTIONS])
+@pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
+@pytest.mark.parametrize("device_payload", [[WAN_UPTIME_STATS_GATEWAY]])
+@pytest.mark.usefixtures("entity_registry_enabled_by_default")
+@pytest.mark.freeze_time("2021-01-01 01:01:00")
+async def test_wan_group_sensors_entity(
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+    config_entry_factory: ConfigEntryFactoryType,
+    snapshot: SnapshotAssertion,
+) -> None:
+    """Verify the WAN group sensors of a gateway with WAN networks."""
+    with patch("homeassistant.components.unifi.PLATFORMS", [Platform.SENSOR]):
+        config_entry = await config_entry_factory()
+    await snapshot_platform(hass, entity_registry, snapshot, config_entry.entry_id)
+
+
+WAN_DEVICE = {"identifiers": {("unifi", WAN_NETWORKS[0]["_id"])}}
+WAN3_DEVICE = {"identifiers": {("unifi", WAN_NETWORKS[2]["_id"])}}
+GATEWAY_DEVICE = {"connections": {(dr.CONNECTION_NETWORK_MAC, WAN_GATEWAY["mac"])}}
+
+
+@pytest.mark.parametrize("config_entry_options", [WAN_ENABLED_OPTIONS])
+@pytest.mark.parametrize("device_payload", [[WAN_UPTIME_STATS_GATEWAY]])
+@pytest.mark.parametrize(
+    ("network_payload", "entity_id", "device"),
+    [
+        pytest.param(
+            WAN_NETWORKS,
+            "sensor.internet_1_google_latency",
+            WAN_DEVICE,
+            id="wan_device_target_latency",
+        ),
+        pytest.param(
+            WAN_NETWORKS, "sensor.internet_1_latency", WAN_DEVICE, id="wan_device"
+        ),
+        pytest.param(
+            WAN_NETWORKS,
+            "sensor.unifi_5g_a_availability",
+            WAN3_DEVICE,
+            id="wan3_device",
+        ),
+        pytest.param(
+            [],
+            "sensor.gateway_google_wan_latency",
+            GATEWAY_DEVICE,
+            id="no_networks_target_latency",
+        ),
+        pytest.param(
+            [], "sensor.gateway_wan3_uptime", GATEWAY_DEVICE, id="no_networks_wan3"
+        ),
+        pytest.param(
+            [WAN_NETWORKS[0]],
+            "sensor.internet_1_google_latency",
+            WAN_DEVICE,
+            id="network_known",
+        ),
+        pytest.param(
+            [WAN_NETWORKS[0]],
+            "sensor.gateway_wan3_latency",
+            GATEWAY_DEVICE,
+            id="network_unknown",
+        ),
+    ],
+)
+@pytest.mark.usefixtures("entity_registry_enabled_by_default", "config_entry_setup")
+async def test_wan_group_sensors_device(
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+    device_registry: dr.DeviceRegistry,
+    entity_id: str,
+    device: dict[str, set[tuple[str, str]]],
+) -> None:
+    """Verify WAN group sensors are on their WAN device, else on the gateway."""
+    assert hass.states.get(entity_id) is not None
+    assert [
+        device_entry.id for device_entry in device_registry.async_get_devices(**device)
+    ] == [entity_registry.async_get(entity_id).device_id]
+
+
+@pytest.mark.parametrize("config_entry_options", [WAN_ENABLED_OPTIONS])
+@pytest.mark.parametrize("network_payload", [WAN_NETWORKS])
+@pytest.mark.parametrize("device_payload", [[WAN_UPTIME_STATS_GATEWAY]])
+async def test_wan_latency_sensor_moves_to_wan_device(
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+    device_registry: dr.DeviceRegistry,
+    config_entry: MockConfigEntry,
+    config_entry_factory: ConfigEntryFactoryType,
+) -> None:
+    """Verify an existing latency sensor keeps its entity ID on its WAN device."""
+    gateway = device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        connections={(dr.CONNECTION_NETWORK_MAC, WAN_GATEWAY["mac"])},
+        name="Gateway",
+    )
+    entity_registry.async_get_or_create(
+        SENSOR_DOMAIN,
+        "unifi",
+        GATEWAY_GOOGLE_WAN_LATENCY_UNIQUE_ID,
+        config_entry=config_entry,
+        device_id=gateway.id,
+        suggested_object_id="gateway_google_wan_latency",
+    )
+
+    await config_entry_factory()
+
+    entity_id = entity_registry.async_get_entity_id(
+        SENSOR_DOMAIN, "unifi", GATEWAY_GOOGLE_WAN_LATENCY_UNIQUE_ID
+    )
+    assert entity_id == "sensor.gateway_google_wan_latency"
+    assert hass.states.get(entity_id).state == "8"
+    assert [
+        device_entry.id
+        for device_entry in device_registry.async_get_devices(**WAN_DEVICE)
+    ] == [entity_registry.async_get(entity_id).device_id]
