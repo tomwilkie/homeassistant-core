@@ -2135,25 +2135,9 @@ async def test_wan_monitor_latency(
     """Verify that wan latency sensors are working as expected."""
     entity_id = f"sensor.mock_name_{monitor_id}_latency"
 
-    assert len(hass.states.async_all()) == 6
-    assert len(hass.states.async_entity_ids(SENSOR_DOMAIN)) == 2
-
-    latency_entry = entity_registry.async_get(entity_id)
-    assert latency_entry.disabled_by == RegistryEntryDisabler.INTEGRATION
-
-    # Enable entity
-    entity_registry.async_update_entity(entity_id=entity_id, disabled_by=None)
-
-    await hass.async_block_till_done()
-
-    async_fire_time_changed(
-        hass,
-        dt_util.utcnow() + timedelta(seconds=RELOAD_AFTER_UPDATE_DELAY + 1),
-    )
-    await hass.async_block_till_done()
-
-    assert len(hass.states.async_all()) == 7
-    assert len(hass.states.async_entity_ids(SENSOR_DOMAIN)) == 3
+    assert len(hass.states.async_all()) == 17
+    assert len(hass.states.async_entity_ids(SENSOR_DOMAIN)) == 13
+    assert entity_registry.async_get(entity_id).disabled_by is None
 
     # Verify sensor state
     assert hass.states.get(entity_id).state == state
@@ -2223,8 +2207,8 @@ async def test_wan_monitor_latency_with_no_entries(
 ) -> None:
     """Verify that wan latency sensors is not created if there is no data."""
 
-    assert len(hass.states.async_all()) == 6
-    assert len(hass.states.async_entity_ids(SENSOR_DOMAIN)) == 2
+    assert len(hass.states.async_all()) == 9
+    assert len(hass.states.async_entity_ids(SENSOR_DOMAIN)) == 5
 
     latency_entry = entity_registry.async_get("sensor.mock_name_google_wan_latency")
     assert latency_entry is None
@@ -2298,8 +2282,8 @@ async def test_wan_monitor_latency_without_monitors_key(
 ) -> None:
     """Verify setup succeeds when a WAN's uptime stats omit the 'monitors' key."""
 
-    assert len(hass.states.async_all()) == 6
-    assert len(hass.states.async_entity_ids(SENSOR_DOMAIN)) == 2
+    assert len(hass.states.async_all()) == 8
+    assert len(hass.states.async_entity_ids(SENSOR_DOMAIN)) == 4
 
     latency_entry = entity_registry.async_get("sensor.mock_name_google_wan_latency")
     assert latency_entry is None

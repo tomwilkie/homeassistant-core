@@ -430,11 +430,9 @@ def make_wan_latency_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
             translation_key_fn=partial(
                 async_device_wan_translation_key_fn, wan, "gateway_wan_latency"
             ),
-            entity_category=EntityCategory.DIAGNOSTIC,
             native_unit_of_measurement=UnitOfTime.MILLISECONDS,
             state_class=SensorStateClass.MEASUREMENT,
             device_class=SensorDeviceClass.DURATION,
-            entity_registry_enabled_default=False,
             api_handler_fn=lambda api: api.devices,
             available_fn=async_device_available_fn,
             device_info_fn=partial(async_device_wan_device_info_fn, wan),
@@ -523,10 +521,8 @@ def make_wan_stats_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
                 async_device_wan_translation_key_fn, wan, "gateway_wan_latency_average"
             ),
             device_class=SensorDeviceClass.DURATION,
-            entity_category=EntityCategory.DIAGNOSTIC,
             native_unit_of_measurement=UnitOfTime.MILLISECONDS,
             state_class=SensorStateClass.MEASUREMENT,
-            entity_registry_enabled_default=False,
             api_handler_fn=lambda api: api.devices,
             available_fn=async_device_available_fn,
             device_info_fn=partial(async_device_wan_device_info_fn, wan),
@@ -548,11 +544,9 @@ def make_wan_stats_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
             translation_key_fn=partial(
                 async_device_wan_translation_key_fn, wan, "gateway_wan_availability"
             ),
-            entity_category=EntityCategory.DIAGNOSTIC,
             native_unit_of_measurement=PERCENTAGE,
             state_class=SensorStateClass.MEASUREMENT,
             suggested_display_precision=1,
-            entity_registry_enabled_default=False,
             api_handler_fn=lambda api: api.devices,
             available_fn=async_device_available_fn,
             device_info_fn=partial(async_device_wan_device_info_fn, wan),
@@ -575,8 +569,6 @@ def make_wan_stats_sensors() -> tuple[UnifiSensorEntityDescription, ...]:
                 async_device_wan_translation_key_fn, wan, "gateway_wan_uptime"
             ),
             device_class=SensorDeviceClass.UPTIME,
-            entity_category=EntityCategory.DIAGNOSTIC,
-            entity_registry_enabled_default=False,
             api_handler_fn=lambda api: api.devices,
             available_fn=async_device_available_fn,
             device_info_fn=partial(async_device_wan_device_info_fn, wan),
