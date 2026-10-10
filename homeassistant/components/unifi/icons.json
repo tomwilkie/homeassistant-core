@@ -10,6 +10,14 @@
         "default": "mdi:qrcode"
       }
     },
+    "number": {
+      "wan_failover_priority": {
+        "default": "mdi:sort-numeric-ascending"
+      },
+      "wan_load_balance_weight": {
+        "default": "mdi:scale-balance"
+      }
+    },
     "sensor": {
       "client_bandwidth_rx": {
         "default": "mdi:download"
