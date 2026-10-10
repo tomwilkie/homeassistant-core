@@ -57,6 +57,7 @@ async def test_hub_setup(
             Platform.IMAGE,
             Platform.LIGHT,
             Platform.NUMBER,
+            Platform.SELECT,
             Platform.SENSOR,
             Platform.SWITCH,
             Platform.UPDATE,
