@@ -78,6 +78,14 @@
         "name": "LED"
       }
     },
+    "number": {
+      "wan_failover_priority": {
+        "name": "Failover priority"
+      },
+      "wan_load_balance_weight": {
+        "name": "Load balance weight"
+      }
+    },
     "sensor": {
       "client_bandwidth_rx": {
         "name": "RX"
@@ -197,6 +205,9 @@
     "action_request_failed": {
       "message": "Failed to send action request to UniFi Network"
     },
+    "action_request_rejected": {
+      "message": "UniFi Network could not apply the action: {reason}"
+    },
     "reconnect_client_device_not_found": {
       "message": "Unable to reconnect client: device not found"
     },
@@ -208,6 +219,9 @@
     },
     "remove_clients_request_failed": {
       "message": "Failed to remove clients from UniFi Network"
+    },
+    "wan_failover_priority_conflict": {
+      "message": "Another WAN already uses this failover priority. Move that WAN to an unused priority first, then try again"
     }
   },
   "options": {
@@ -226,7 +240,7 @@
           "block_client": "Select clients whose network access you want to control via switches.",
           "track_clients": "Create device tracker entities for network clients.",
           "track_devices": "Create device tracker entities for Ubiquiti network devices.",
-          "track_wan_networks": "Create a device per WAN network, with its status."
+          "track_wan_networks": "Create a device per WAN network, with its status and failover settings."
         },
         "sections": {
           "more_options": {
