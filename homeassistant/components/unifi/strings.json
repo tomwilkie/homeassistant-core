@@ -86,6 +86,15 @@
         "name": "Load balance weight"
       }
     },
+    "select": {
+      "wan_load_balancing": {
+        "name": "Load balancing",
+        "state": {
+          "failover-only": "Failover only",
+          "weighted": "Weighted"
+        }
+      }
+    },
     "sensor": {
       "client_bandwidth_rx": {
         "name": "RX"
@@ -222,6 +231,9 @@
     },
     "wan_failover_priority_conflict": {
       "message": "Another WAN already uses this failover priority. Move that WAN to an unused priority first, then try again"
+    },
+    "wan_load_balance_weighted_required": {
+      "message": "At least one WAN must use weighted load balancing"
     }
   },
   "options": {
@@ -240,7 +252,7 @@
           "block_client": "Select clients whose network access you want to control via switches.",
           "track_clients": "Create device tracker entities for network clients.",
           "track_devices": "Create device tracker entities for Ubiquiti network devices.",
-          "track_wan_networks": "Create a device per WAN network, with its status and failover settings."
+          "track_wan_networks": "Create a device per WAN network, with its status and load balancing and failover settings."
         },
         "sections": {
           "more_options": {
